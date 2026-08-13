@@ -1,0 +1,19 @@
+# Trivy config for Layer 1c (filesystem + IaC vulnerability scan).
+# Full schema: https://trivy.dev/latest/docs/references/configuration/config-file/
+#
+# CI passes --severity/--format/--output/--exit-code explicitly on the command
+# line (see .github/workflows/ai-security-scan.yml / azure-pipelines.yml) so
+# they're authoritative; this file covers scan scope and skip rules that are
+# easier to maintain as version-controlled config than as CLI flags.
+
+scan:
+  skip-dirs:
+    - node_modules
+    - .git
+    - configs/threagile/output
+
+# Dependencies pulled in transitively with no upstream fix available yet are
+# tracked, not blocked - re-run with --ignore-unfixed=false locally if you
+# want to see the full unfiltered list.
+vulnerability:
+  ignore-unfixed: true

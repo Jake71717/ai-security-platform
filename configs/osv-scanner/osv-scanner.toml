@@ -1,0 +1,15 @@
+# OSV-Scanner config for Layer 1d (dependency vulnerability scan).
+# Full schema: https://google.github.io/osv-scanner/configuration/
+#
+# Add an [[IgnoredVulns]] entry per accepted/false-positive finding, same
+# spirit as Threagile's risk_tracking: - every exception needs a reason and
+# an owner on record, not a silent skip.
+#
+# Example:
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# reason = "Vendored test fixture only, not shipped in the runtime image. Tracked in issue #123."
+
+[GoVersionOverride]
+# Uncomment and set if OSV-Scanner misdetects your Go toolchain version.
+# GoVersion = "1.22.0"

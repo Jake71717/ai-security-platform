@@ -1,0 +1,50 @@
+# Runtime deployment: NeMo Guardrails sits between the client and the LLM
+# provider as an inline proxy (Layer 4). Langfuse provides tracing/observability
+# on every request that passes through.
+#
+# Usage:
+#   docker compose -f docker-compose.guardrails.yml up -d
+#
+version: "3.9"
+
+services:
+  guardrails-proxy:
+    image: nvcr.io/nvidia/nemo-guardrails:latest
+    container_name: ai-sec-guardrails
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./configs/nemo-guardrails:/config
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    command: ["nemoguardrails", "server", "--config=/config", "--port=8000"]
+    restart: unless-stopped
+
+  langfuse-db:
+    image: postgres:16-alpine
+    container_name: ai-sec-langfuse-db
+    environment:
+      - POSTGRES_USER=langfuse
+      - POSTGRES_PASSWORD=${LANGFUSE_DB_PASSWORD:-changeme}
+      - POSTGRES_DB=langfuse
+    volumes:
+      - langfuse_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: ai-sec-langfuse
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgresql://langfuse:${LANGFUSE_DB_PASSWORD:-changeme}@langfuse-db:5432/langfuse
+      - NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET:-change-this-secret}
+      - SALT=${LANGFUSE_SALT:-change-this-salt}
+      - NEXTAUTH_URL=http://localhost:3001
+    depends_on:
+      - langfuse-db
+    restart: unless-stopped
+
+volumes:
+  langfuse_db_data:

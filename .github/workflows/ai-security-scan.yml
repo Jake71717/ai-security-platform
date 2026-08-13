@@ -1,0 +1,368 @@
+name: AI Security Platform - Full Scan
+
+# Turnkey MLSecOps pipeline. Runs on every PR that touches models, prompts,
+# or app code, plus a nightly full sweep. Each job is a "layer" of the
+# 4-layer architecture described in /docs/AI-Security-Architecture.docx.
+#
+# Required repo secrets:
+#   OPENAI_API_KEY / ANTHROPIC_API_KEY   - needed for Garak/Promptfoo and for STRIDE GPT's LLM calls
+#   SEMGREP_APP_TOKEN                    - optional, only for Semgrep AppSec Platform upload
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 3 * * *"   # nightly deep scan
+  workflow_dispatch: {}
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ---------------------------------------------------------------------
+  # LAYER 0a: Baseline Threat Model (Threagile) - deterministic, blocking
+  # ---------------------------------------------------------------------
+  threat-model-baseline:
+    name: "Layer 0 - Baseline Threat Model (Threagile)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Threagile
+        run: |
+          mkdir -p configs/threagile/output
+          docker run --rm \
+            -v "${{ github.workspace }}/configs/threagile:/app/work" \
+            threagile/threagile \
+            -model /app/work/threagile.yaml \
+            -output /app/work/output
+
+      - name: Enforce no untriaged critical/high risks
+        run: python3 scripts/check_threagile_risks.py configs/threagile/output/risks.json
+
+      - name: Upload Threagile report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: threagile-report
+          path: configs/threagile/output/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # LAYER 0b: AI-Assisted Threat Modeling (STRIDE GPT) - advisory only
+  # ---------------------------------------------------------------------
+  threat-model-ai-assist:
+    name: "Layer 0 - AI-Assisted Threat Modeling (STRIDE GPT)"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true   # advisory - a human curates findings, see agents/threat-modeler.md
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install STRIDE GPT
+        run: pip install stride-gpt --break-system-packages
+
+      - name: Run agentic threat model analysis
+        run: |
+          stride-gpt analyze . \
+            --app-type genai \
+            --worker-model anthropic/claude-sonnet-4-6 \
+            --architect-model anthropic/claude-opus-4-8 \
+            --max-llm-calls 60 \
+            -y \
+            -o stride-gpt-report.sarif -f sarif
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: stride-gpt-report.sarif
+        continue-on-error: true
+
+      - name: Upload STRIDE GPT report artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stride-gpt-threat-model
+          path: |
+            stride-gpt-report.sarif
+            stride-gpt-report.*.json
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # LAYER 1: Supply Chain & Model Integrity
+  # ---------------------------------------------------------------------
+  supply-chain-scan:
+    name: "Layer 1 - Supply Chain & Model Integrity"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install scanners
+        run: |
+          pip install modelscan picklescan --break-system-packages
+
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+
+      - name: Scan model weight files for serialization attacks
+        run: |
+          if find . -type f \( -name "*.pkl" -o -name "*.pt" -o -name "*.pth" -o -name "*.h5" -o -name "*.safetensors" \) | grep -q .; then
+            modelscan scan --path . --report-format json --output modelscan-report.json || true
+            find . -type f \( -name "*.pkl" -o -name "*.pt" -o -name "*.pth" \) -exec picklescan --path {} \; || true
+          else
+            echo "No model weight files found in repo - skipping (models likely pulled from a registry at deploy time)."
+          fi
+
+      - name: Upload supply-chain artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: supply-chain-reports
+          path: |
+            sbom.cdx.json
+            modelscan-report.json
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # LAYER 1b: Code-level SAST for AI/ML frameworks
+  # ---------------------------------------------------------------------
+  sast-scan:
+    name: "Layer 1 - SAST (Semgrep AI/ML rules)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            configs/semgrep/ai-ml-rules.yml
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+  # ---------------------------------------------------------------------
+  # LAYER 1c: Container / IaC / Filesystem Vulnerability Scan (Trivy)
+  # ---------------------------------------------------------------------
+  trivy-scan:
+    name: "Layer 1 - Vulnerability Scan (Trivy)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem + config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          format: "sarif"
+          output: "trivy-results.sarif"
+          exit-code: "1"
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+        continue-on-error: true
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-results.sarif
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # LAYER 1d: Dependency Vulnerability Scan (OSV-Scanner)
+  # ---------------------------------------------------------------------
+  osv-scan:
+    name: "Layer 1 - Dependency Vulnerability Scan (OSV-Scanner)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OSV-Scanner
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/src" \
+            ghcr.io/google/osv-scanner:latest scan source \
+            --format sarif --output /src/osv-results.sarif \
+            --recursive /src || true
+
+      - name: Enforce no CRITICAL/HIGH findings
+        run: python3 scripts/check_osv_results.py osv-results.sarif
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: osv-results.sarif
+        continue-on-error: true
+
+      - name: Upload OSV-Scanner report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-scanner-report
+          path: osv-results.sarif
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # LAYER 2: Data & Pipeline Integrity (PII / secrets in datasets)
+  # ---------------------------------------------------------------------
+  data-pipeline-scan:
+    name: "Layer 2 - Data & Pipeline Integrity"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install detect-secrets
+        run: pip install detect-secrets --break-system-packages
+      - name: Scan for committed secrets / credentials
+        run: |
+          detect-secrets scan --all-files > secrets-report.json
+          python -c "import json,sys; d=json.load(open('secrets-report.json')); n=sum(len(v) for v in d['results'].values()); print(f'{n} potential secrets found'); sys.exit(1 if n else 0)"
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-pipeline-report
+          path: secrets-report.json
+
+  # ---------------------------------------------------------------------
+  # LAYER 3: Model Robustness & Automated Red Teaming
+  # ---------------------------------------------------------------------
+  red-team-scan:
+    name: "Layer 3 - Model Robustness & Red Teaming"
+    runs-on: ubuntu-latest
+    needs: [supply-chain-scan]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Garak + Promptfoo
+        run: |
+          pip install garak --break-system-packages
+          npm install -g promptfoo
+
+      - name: Run Garak probe suite (fast PR subset)
+        if: github.event_name == 'pull_request'
+        run: |
+          python -m garak \
+            --model_type openai \
+            --model_name gpt-4o-mini \
+            --probes promptinject,leakreplay,malwaregen \
+            --report_prefix garak-pr-report
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        continue-on-error: true   # non-blocking on PRs; nightly run is the hard gate
+
+      - name: Run Garak full probe suite (nightly)
+        if: github.event_name == 'schedule'
+        run: |
+          python -m garak \
+            --model_type openai \
+            --model_name gpt-4o-mini \
+            --probes all \
+            --report_prefix garak-nightly-report
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Run Promptfoo red-team + eval suite
+        run: |
+          promptfoo redteam run -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-results.json || true
+          promptfoo eval -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-eval.json
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Enforce pass-rate gate
+        run: |
+          promptfoo eval -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-eval.json
+          node scripts/check-eval-threshold.js promptfoo-eval.json 0.95
+
+      - name: Upload red-team artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: red-team-reports
+          path: |
+            garak-*report*.html
+            garak-*report*.jsonl
+            promptfoo-results.json
+            promptfoo-eval.json
+
+  # ---------------------------------------------------------------------
+  # LAYER 4: Runtime Guardrails config validation
+  # ---------------------------------------------------------------------
+  guardrails-validate:
+    name: "Layer 4 - Runtime Guardrails Config Validation"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install NeMo Guardrails
+        run: pip install nemoguardrails --break-system-packages
+      - name: Validate guardrails config compiles
+        run: |
+          python -c "
+          from nemoguardrails import RailsConfig
+          config = RailsConfig.from_path('configs/nemo-guardrails')
+          print('Guardrails config OK:', config.config_path)
+          "
+
+  # ---------------------------------------------------------------------
+  # Gate: summarize + fail build on critical findings
+  # ---------------------------------------------------------------------
+  security-gate:
+    name: "Security Gate (aggregate)"
+    runs-on: ubuntu-latest
+    needs: [threat-model-baseline, supply-chain-scan, sast-scan, trivy-scan, osv-scan, data-pipeline-scan, red-team-scan, guardrails-validate]
+    # Note: threat-model-ai-assist is intentionally NOT a dependency here - it's
+    # advisory (continue-on-error), same as the PR-fast Garak probe subset.
+    if: always()
+    steps:
+      - name: Fail if any required layer failed
+        run: |
+          if [ "${{ needs.threat-model-baseline.result }}" != "success" ] || \
+             [ "${{ needs.supply-chain-scan.result }}" != "success" ] || \
+             [ "${{ needs.sast-scan.result }}" != "success" ] || \
+             [ "${{ needs.trivy-scan.result }}" != "success" ] || \
+             [ "${{ needs.osv-scan.result }}" != "success" ] || \
+             [ "${{ needs.data-pipeline-scan.result }}" != "success" ] || \
+             [ "${{ needs.red-team-scan.result }}" != "success" ] || \
+             [ "${{ needs.guardrails-validate.result }}" != "success" ]; then
+            echo "One or more security layers failed. Blocking merge."
+            exit 1
+          fi
+          echo "All security layers passed."

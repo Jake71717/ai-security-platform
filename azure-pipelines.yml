@@ -1,0 +1,382 @@
+# AI Security Platform - Full Scan (Azure DevOps)
+#
+# Azure Pipelines equivalent of .github/workflows/ai-security-scan.yml.
+# See docs/IMPLEMENTATION-ADO.md for the full setup walkthrough.
+#
+# Required Library variable group: ai-security-platform-secrets
+#   OPENAI_API_KEY       (secret)  - needed for Garak/Promptfoo and STRIDE GPT's LLM calls
+#   ANTHROPIC_API_KEY    (secret)  - additional target / STRIDE GPT model provider
+#   SEMGREP_APP_TOKEN    (secret)  - optional, only for Semgrep AppSec Platform upload
+
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+schedules:
+  - cron: "0 3 * * *"
+    displayName: "Nightly deep scan"
+    branches:
+      include:
+        - main
+    always: true
+
+pool:
+  vmImage: "ubuntu-latest"
+
+variables:
+  - group: ai-security-platform-secrets
+  - name: PYTHON_VERSION
+    value: "3.11"
+
+stages:
+  - stage: SecurityScan
+    displayName: "AI Security Platform - Full Scan"
+    jobs:
+      # ---------------------------------------------------------------
+      # LAYER 0a: Baseline Threat Model (Threagile) - deterministic, blocking
+      # ---------------------------------------------------------------
+      - job: ThreatModelBaseline
+        displayName: "Layer 0 - Baseline Threat Model (Threagile)"
+        steps:
+          - checkout: self
+
+          - script: |
+              mkdir -p configs/threagile/output
+              docker run --rm \
+                -v "$(System.DefaultWorkingDirectory)/configs/threagile:/app/work" \
+                threagile/threagile \
+                -model /app/work/threagile.yaml \
+                -output /app/work/output
+            displayName: "Run Threagile"
+
+          - script: python3 scripts/check_threagile_risks.py configs/threagile/output/risks.json
+            displayName: "Enforce no untriaged critical/high risks"
+
+          - publish: $(System.DefaultWorkingDirectory)/configs/threagile/output
+            artifact: threagile-report
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 0b: AI-Assisted Threat Modeling (STRIDE GPT) - advisory only
+      # ---------------------------------------------------------------
+      - job: ThreatModelAiAssist
+        displayName: "Layer 0 - AI-Assisted Threat Modeling (STRIDE GPT)"
+        condition: or(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.Reason'], 'Schedule'), eq(variables['Build.Reason'], 'Manual'))
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(PYTHON_VERSION)"
+
+          - script: pip install stride-gpt
+            displayName: "Install STRIDE GPT"
+
+          - script: |
+              stride-gpt analyze . \
+                --app-type genai \
+                --worker-model anthropic/claude-sonnet-4-6 \
+                --architect-model anthropic/claude-opus-4-8 \
+                --max-llm-calls 60 \
+                -y \
+                -o stride-gpt-report.sarif -f sarif
+            displayName: "Run agentic threat model analysis"
+            continueOnError: true   # advisory - a human curates findings, see agents/threat-modeler.md
+            env:
+              ANTHROPIC_API_KEY: $(ANTHROPIC_API_KEY)
+              OPENAI_API_KEY: $(OPENAI_API_KEY)
+
+          - publish: $(System.DefaultWorkingDirectory)/stride-gpt-report.sarif
+            artifact: stride-gpt-threat-model
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 1: Supply Chain & Model Integrity
+      # ---------------------------------------------------------------
+      - job: SupplyChainScan
+        displayName: "Layer 1 - Supply Chain & Model Integrity"
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(PYTHON_VERSION)"
+
+          - script: pip install modelscan picklescan
+            displayName: "Install scanners"
+
+          - script: |
+              curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+              syft . -o cyclonedx-json > sbom.cdx.json
+            displayName: "Generate SBOM (Syft)"
+
+          - script: |
+              if find . -type f \( -name "*.pkl" -o -name "*.pt" -o -name "*.pth" -o -name "*.h5" -o -name "*.safetensors" \) | grep -q .; then
+                modelscan scan --path . --report-format json --output modelscan-report.json || true
+                find . -type f \( -name "*.pkl" -o -name "*.pt" -o -name "*.pth" \) -exec picklescan --path {} \; || true
+              else
+                echo "No model weight files found in repo - skipping (models likely pulled from a registry at deploy time)."
+              fi
+            displayName: "Scan model weights for serialization attacks"
+
+          - publish: $(System.DefaultWorkingDirectory)/sbom.cdx.json
+            artifact: supply-chain-sbom
+            condition: succeededOrFailed()
+
+          - publish: $(System.DefaultWorkingDirectory)/modelscan-report.json
+            artifact: supply-chain-modelscan-report
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 1b: Code-level SAST for AI/ML frameworks
+      # ---------------------------------------------------------------
+      - job: SastScan
+        displayName: "Layer 1 - SAST (Semgrep AI/ML rules)"
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(PYTHON_VERSION)"
+
+          - script: pip install semgrep
+            displayName: "Install Semgrep"
+
+          - script: |
+              semgrep scan \
+                --config p/security-audit \
+                --config p/secrets \
+                --config configs/semgrep/ai-ml-rules.yml \
+                --error \
+                --sarif --output semgrep-results.sarif
+            displayName: "Run Semgrep"
+            env:
+              SEMGREP_APP_TOKEN: $(SEMGREP_APP_TOKEN)
+
+          - publish: $(System.DefaultWorkingDirectory)/semgrep-results.sarif
+            artifact: sast-report
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 1c: Container / IaC / Filesystem Vulnerability Scan (Trivy)
+      # ---------------------------------------------------------------
+      - job: TrivyScan
+        displayName: "Layer 1 - Vulnerability Scan (Trivy)"
+        steps:
+          - checkout: self
+
+          - script: |
+              curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+              trivy fs . \
+                --severity CRITICAL,HIGH \
+                --ignore-unfixed \
+                --format sarif \
+                --output trivy-results.sarif \
+                --exit-code 1
+            displayName: "Run Trivy filesystem + config scan"
+
+          - publish: $(System.DefaultWorkingDirectory)/trivy-results.sarif
+            artifact: trivy-report
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 1d: Dependency Vulnerability Scan (OSV-Scanner)
+      # ---------------------------------------------------------------
+      - job: OsvScan
+        displayName: "Layer 1 - Dependency Vulnerability Scan (OSV-Scanner)"
+        steps:
+          - checkout: self
+
+          - script: |
+              docker run --rm -v "$(System.DefaultWorkingDirectory):/src" \
+                ghcr.io/google/osv-scanner:latest scan source \
+                --format sarif --output /src/osv-results.sarif \
+                --recursive /src || true
+            displayName: "Run OSV-Scanner"
+
+          - script: python3 scripts/check_osv_results.py osv-results.sarif
+            displayName: "Enforce no CRITICAL/HIGH findings"
+
+          - publish: $(System.DefaultWorkingDirectory)/osv-results.sarif
+            artifact: osv-scanner-report
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 2: Data & Pipeline Integrity (PII / secrets in datasets)
+      # ---------------------------------------------------------------
+      - job: DataPipelineScan
+        displayName: "Layer 2 - Data & Pipeline Integrity"
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(PYTHON_VERSION)"
+
+          - script: pip install detect-secrets
+            displayName: "Install detect-secrets"
+
+          - script: |
+              detect-secrets scan --all-files > secrets-report.json
+              python -c "import json,sys; d=json.load(open('secrets-report.json')); n=sum(len(v) for v in d['results'].values()); print(f'{n} potential secrets found'); sys.exit(1 if n else 0)"
+            displayName: "Scan for committed secrets / credentials"
+
+          - publish: $(System.DefaultWorkingDirectory)/secrets-report.json
+            artifact: data-pipeline-report
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 3: Model Robustness & Automated Red Teaming
+      # ---------------------------------------------------------------
+      - job: RedTeamScan
+        displayName: "Layer 3 - Model Robustness & Red Teaming"
+        dependsOn: SupplyChainScan
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(PYTHON_VERSION)"
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: "20.x"
+
+          - script: |
+              pip install garak
+              npm install -g promptfoo
+            displayName: "Install Garak + Promptfoo"
+
+          - script: |
+              python -m garak \
+                --model_type openai \
+                --model_name gpt-4o-mini \
+                --probes promptinject,leakreplay,malwaregen \
+                --report_prefix garak-pr-report
+            displayName: "Garak fast probe subset (PR)"
+            condition: eq(variables['Build.Reason'], 'PullRequest')
+            continueOnError: true   # non-blocking on PRs; nightly run is the hard gate
+            env:
+              OPENAI_API_KEY: $(OPENAI_API_KEY)
+
+          - script: |
+              python -m garak \
+                --model_type openai \
+                --model_name gpt-4o-mini \
+                --probes all \
+                --report_prefix garak-nightly-report
+            displayName: "Garak full probe suite (nightly)"
+            condition: eq(variables['Build.Reason'], 'Schedule')
+            env:
+              OPENAI_API_KEY: $(OPENAI_API_KEY)
+
+          - script: |
+              promptfoo redteam run -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-results.json || true
+              promptfoo eval -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-eval.json
+            displayName: "Run Promptfoo red-team + eval suite"
+            env:
+              OPENAI_API_KEY: $(OPENAI_API_KEY)
+              ANTHROPIC_API_KEY: $(ANTHROPIC_API_KEY)
+
+          - script: node scripts/check-eval-threshold.js promptfoo-eval.json 0.95
+            displayName: "Enforce pass-rate gate"
+
+          - task: CopyFiles@2
+            displayName: "Stage red-team artifacts"
+            condition: succeededOrFailed()
+            inputs:
+              contents: |
+                garak-*report*.html
+                garak-*report*.jsonl
+                promptfoo-results.json
+                promptfoo-eval.json
+              targetFolder: $(Build.ArtifactStagingDirectory)/red-team-reports
+              flattenFolders: true
+
+          - publish: $(Build.ArtifactStagingDirectory)/red-team-reports
+            artifact: red-team-reports
+            condition: succeededOrFailed()
+
+      # ---------------------------------------------------------------
+      # LAYER 4: Runtime Guardrails config validation
+      # ---------------------------------------------------------------
+      - job: GuardrailsValidate
+        displayName: "Layer 4 - Runtime Guardrails Config Validation"
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "$(PYTHON_VERSION)"
+
+          - script: pip install nemoguardrails
+            displayName: "Install NeMo Guardrails"
+
+          - script: |
+              python -c "
+              from nemoguardrails import RailsConfig
+              config = RailsConfig.from_path('configs/nemo-guardrails')
+              print('Guardrails config OK:', config.config_path)
+              "
+            displayName: "Validate guardrails config compiles"
+
+      # ---------------------------------------------------------------
+      # Gate: summarize + fail the pipeline on critical findings
+      # ---------------------------------------------------------------
+      - job: SecurityGate
+        displayName: "Security Gate (aggregate)"
+        dependsOn:
+          - ThreatModelBaseline
+          - SupplyChainScan
+          - SastScan
+          - TrivyScan
+          - OsvScan
+          - DataPipelineScan
+          - RedTeamScan
+          - GuardrailsValidate
+        # Note: ThreatModelAiAssist is intentionally NOT a dependency here - it's
+        # advisory (continueOnError), same as the PR-fast Garak probe subset.
+        condition: always()
+        variables:
+          threatModelResult: $[ dependencies.ThreatModelBaseline.result ]
+          supplyChainResult: $[ dependencies.SupplyChainScan.result ]
+          sastResult: $[ dependencies.SastScan.result ]
+          trivyResult: $[ dependencies.TrivyScan.result ]
+          osvResult: $[ dependencies.OsvScan.result ]
+          dataPipelineResult: $[ dependencies.DataPipelineScan.result ]
+          redTeamResult: $[ dependencies.RedTeamScan.result ]
+          guardrailsResult: $[ dependencies.GuardrailsValidate.result ]
+        steps:
+          - script: |
+              echo "Threat model:  $(threatModelResult)"
+              echo "Supply chain: $(supplyChainResult)"
+              echo "SAST:         $(sastResult)"
+              echo "Trivy:        $(trivyResult)"
+              echo "OSV-Scanner:  $(osvResult)"
+              echo "Data pipeline:$(dataPipelineResult)"
+              echo "Red team:     $(redTeamResult)"
+              echo "Guardrails:   $(guardrailsResult)"
+
+              fail=0
+              for r in "$(threatModelResult)" "$(supplyChainResult)" "$(sastResult)" "$(trivyResult)" "$(osvResult)" "$(dataPipelineResult)" "$(redTeamResult)" "$(guardrailsResult)"; do
+                # SucceededWithIssues is allowed - it only happens when the
+                # intentionally non-blocking PR-fast Garak step (continueOnError)
+                # found something; the hard gate is the nightly run + the
+                # pass-rate check, both of which fail the job outright.
+                if [ "$r" != "Succeeded" ] && [ "$r" != "SucceededWithIssues" ]; then
+                  fail=1
+                fi
+              done
+
+              if [ "$fail" = "1" ]; then
+                echo "One or more security layers failed. Blocking merge."
+                exit 1
+              fi
+              echo "All security layers passed."
+            displayName: "Aggregate gate"

@@ -1,0 +1,633 @@
+threagile_version: 1.0.0
+
+# Baseline Threagile model for the AI Security Platform's own reference
+# architecture (Layer 0 - Automated Threat Modeling). This is a STARTER
+# model: adapt technical_assets/data_assets/trust_boundaries to your actual
+# deployed system before relying on this as a real risk register. Import
+# the official schema.json into your IDE for autocomplete/validation.
+#
+# Run: docker run --rm -v "$(pwd)/configs/threagile:/app/work" threagile/threagile \
+#        -model /app/work/threagile.yaml -output /app/work/output
+
+title: AI Security Platform - Reference Deployment
+
+date: 2026-08-13
+
+author:
+  name: Platform Owner
+  homepage: https://github.com/your-org/ai-security-platform
+
+management_summary_comment: >
+  Baseline architecture model covering the platform's own runtime guardrail
+  proxy, CI/CD scanning pipeline, model supply chain, and observability
+  stack. This is Layer 0 of the AI Security Architecture: a deterministic,
+  version-controlled threat model that runs as a CI gate alongside
+  ModelScan, Semgrep, Garak, and Promptfoo.
+
+business_criticality: critical # values: archive, operational, important, critical, mission-critical
+
+business_overview:
+  description: >
+    Reference deployment of the AI Security Platform protecting a
+    customer-facing LLM/agent application: a runtime guardrails proxy in
+    front of a hosted or self-hosted model, a RAG document store, a model
+    weight registry, and the CI/CD pipeline that scans all of it.
+  images:
+
+technical_overview:
+  description: >
+    Client traffic passes through the NeMo Guardrails runtime proxy before
+    reaching the core LLM/agent runtime. The CI/CD pipeline (GitHub Actions
+    or Azure Pipelines) independently scans model weights, dependencies,
+    prompts, and guardrail configs before they are ever deployed. Langfuse
+    captures traces from the runtime path for post-hoc analysis.
+  images:
+
+questions:
+  How are CI/CD pipeline secrets (API keys) protected against exfiltration?: >
+    Stored in GitHub Actions repository secrets or an Azure DevOps variable
+    group linked to Key Vault; not available to fork PRs by default.
+  How is the model weight registry protected against tampering?: >
+    ModelScan/Picklescan run in CI before any weight file is trusted; see
+    Layer 1 of the Architecture Document.
+  How are RAG source documents vetted before ingestion?: ""
+  Who has write access to the guardrails configuration (configs/nemo-guardrails)?: ""
+
+abuse_cases:
+  Prompt Injection via RAG Content: >
+    As an attacker I want to plant an instruction inside a document the
+    RAG pipeline will retrieve, in order to hijack the agent's behavior
+    when that document is later included in a prompt.
+  Model Supply Chain Compromise: >
+    As an attacker I want to publish a malicious pickle/PyTorch model file
+    to a public registry, in order to achieve arbitrary code execution
+    when a victim organization downloads and loads it.
+  Guardrail Bypass / Jailbreak: >
+    As an attacker I want to craft an input that evades the runtime
+    guardrail rails, in order to extract the system prompt, sensitive
+    data, or elicit disallowed content from the core model.
+  CI/CD Secret Exfiltration: >
+    As an attacker I want to get a malicious PR merged or trigger a
+    workflow run, in order to exfiltrate the OPENAI_API_KEY / ANTHROPIC_API_KEY
+    used by the red-team and threat-modeling jobs.
+  Excessive Agent Action: >
+    As an attacker I want to manipulate an agent with tool-calling access
+    into performing a destructive or unauthorized action (data deletion,
+    unauthorized email, fund transfer) outside its intended scope.
+
+security_requirements:
+  Input/Output Guardrails: Every request/response through the runtime path must pass NeMo Guardrails input and output rails.
+  Model Integrity Verification: No model weight file may be loaded in production without a passing ModelScan/Picklescan result.
+  Least-Privilege Tool Scoping: Agent tool credentials must be scoped to the minimum permissions the task requires.
+  Secrets Isolation: LLM provider API keys must never be available to fork-originated CI runs.
+
+tags_available:
+  - genai
+  - llm
+  - rag
+  - agentic
+  - github-actions
+  - azure-pipelines
+  - docker
+
+data_assets:
+
+  End-User Prompts and Conversations: &user-conversation-data
+    id: user-conversation-data
+    description: Prompts, conversation history, and model responses passing through the runtime path.
+    usage: business # values: business, devops
+    tags:
+      - llm
+    origin: End User
+    owner: Application Owner
+    quantity: very-many # values: very-few, few, many, very-many
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: important # values: archive, operational, important, critical, mission-critical
+    availability: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      May contain PII or business-sensitive content submitted by end users; disclosure is the
+      primary OWASP LLM02 risk this platform defends against.
+
+  System Prompts and Guardrails Config:
+    id: system-prompts-config
+    description: System prompts, NeMo Guardrails rails, and Promptfoo test/redteam configuration.
+    usage: devops # values: business, devops
+    tags:
+      - llm
+    origin: Platform Owner
+    owner: Platform Owner
+    quantity: few # values: very-few, few, many, very-many
+    confidentiality: restricted # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: critical # values: archive, operational, important, critical, mission-critical
+    availability: important # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Leakage enables prompt-injection crafting (OWASP LLM07 System Prompt Leakage); tampering
+      directly weakens or disables Layer 4 defenses.
+
+  Model Weights:
+    id: model-weights
+    description: Self-hosted model weight files (safetensors, pickle, PyTorch .pt/.pth).
+    usage: devops # values: business, devops
+    tags:
+      - genai
+    origin: Model Vendor or Internal Training
+    owner: Platform Owner
+    quantity: few # values: very-few, few, many, very-many
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: mission-critical # values: archive, operational, important, critical, mission-critical
+    availability: important # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      A tampered weight file (pickle/PyTorch serialization attack) executes arbitrary code the
+      instant it is loaded - the platform's single highest-severity risk (Layer 1).
+
+  RAG Source Documents:
+    id: rag-source-documents
+    description: Documents ingested into the RAG vector store for retrieval-augmented generation.
+    usage: business # values: business, devops
+    tags:
+      - rag
+    origin: Mixed (internal and external sources)
+    owner: Application Owner
+    quantity: many # values: very-few, few, many, very-many
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: critical # values: archive, operational, important, critical, mission-critical
+    availability: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Poisoned or injected documents are the primary indirect prompt-injection vector
+      (OWASP LLM04, LLM08).
+
+  CI/CD Secrets:
+    id: cicd-secrets
+    description: OPENAI_API_KEY, ANTHROPIC_API_KEY, SEMGREP_APP_TOKEN and equivalents used by the pipeline.
+    usage: devops # values: business, devops
+    tags:
+      - github-actions
+      - azure-pipelines
+    origin: Platform Owner
+    owner: Platform Owner
+    quantity: very-few # values: very-few, few, many, very-many
+    confidentiality: strictly-confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: critical # values: archive, operational, important, critical, mission-critical
+    availability: critical # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Exfiltration enables direct API abuse/cost attacks and potential lateral access to
+      whatever else the key is scoped to.
+
+  Langfuse Traces:
+    <<: *user-conversation-data
+    id: langfuse-traces
+    description: Stored traces of prompts, responses, tool calls, and rail decisions.
+    integrity: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Aggregated historical copy of conversation data; same confidentiality concerns as the
+      live traffic it was captured from, at higher quantity.
+
+  Scan Reports and SBOM:
+    id: scan-reports
+    description: ModelScan/Semgrep/Garak/Promptfoo/Threagile/STRIDE GPT output artifacts.
+    usage: devops # values: business, devops
+    tags:
+    origin: CI/CD Pipeline
+    owner: Platform Owner
+    quantity: many # values: very-few, few, many, very-many
+    confidentiality: internal # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: important # values: archive, operational, important, critical, mission-critical
+    availability: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Reports describe known weaknesses; disclosure to an attacker is a reconnaissance
+      advantage but not itself a direct compromise.
+
+
+technical_assets:
+
+  Client Application:
+    id: client-application
+    description: The end-user-facing application or agent client sending requests.
+    type: external-entity # values: external-entity, process, datastore
+    usage: business # values: business, devops
+    used_as_client_by_human: true
+    out_of_scope: true
+    justification_out_of_scope: Owned and operated by the application team, not the security platform.
+    size: application # values: system, service, application, component
+    technology: client-system # values: see help
+    tags:
+      - llm
+    internet: true
+    machine: physical # values: physical, virtual, container, serverless
+    encryption: transparent # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Application Owner
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: important # values: archive, operational, important, critical, mission-critical
+    availability: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      The client used to interact with the protected LLM/agent application.
+    multi_tenant: true
+    redundant: false
+    custom_developed_parts: true
+    data_assets_processed:
+      - user-conversation-data
+    data_assets_stored:
+    data_formats_accepted:
+      - json
+    communication_links:
+      Client Traffic to Guardrails Proxy:
+        target: guardrails-proxy
+        description: HTTPS request carrying the user prompt.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: end-user-identity-propagation # values: none, technical-user, end-user-identity-propagation
+        tags:
+        vpn: false
+        ip_filtered: false
+        readonly: false
+        usage: business # values: business, devops
+        data_assets_sent:
+          - user-conversation-data
+        data_assets_received:
+          - user-conversation-data
+
+
+  Runtime Guardrails Proxy:
+    id: guardrails-proxy
+    description: NeMo Guardrails inline proxy enforcing input/output rails (Layer 4).
+    type: process # values: external-entity, process, datastore
+    usage: business # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: false
+    justification_out_of_scope:
+    size: service # values: system, service, application, component
+    technology: reverse-proxy # values: see help
+    tags:
+      - llm
+      - docker
+    internet: false
+    machine: container # values: physical, virtual, container, serverless
+    encryption: transparent # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Platform Owner
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: mission-critical # values: archive, operational, important, critical, mission-critical
+    availability: critical # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Last line of defense against jailbreaks and data leakage in live traffic; a bypass or
+      outage directly exposes the core model to unfiltered input.
+    multi_tenant: false
+    redundant: false
+    custom_developed_parts: false
+    data_assets_processed:
+      - user-conversation-data
+      - system-prompts-config
+    data_assets_stored:
+    data_formats_accepted:
+      - json
+    communication_links:
+      Guardrails to Core Model:
+        target: core-llm-runtime
+        description: Forwarded request after input rails pass.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        tags:
+          - llm
+        vpn: false
+        ip_filtered: false
+        readonly: false
+        usage: business # values: business, devops
+        data_assets_sent:
+          - user-conversation-data
+        data_assets_received:
+          - user-conversation-data
+      Guardrails to RAG Store:
+        target: rag-vector-store
+        description: Retrieval query for RAG-augmented prompts.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        tags:
+          - rag
+        vpn: false
+        ip_filtered: false
+        readonly: true
+        usage: business # values: business, devops
+        data_assets_sent:
+        data_assets_received:
+          - rag-source-documents
+      Guardrails to Langfuse:
+        target: langfuse-observability
+        description: Trace export for every request/response and rail decision.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        tags:
+        vpn: false
+        ip_filtered: false
+        readonly: false
+        usage: devops # values: business, devops
+        data_assets_sent:
+          - langfuse-traces
+        data_assets_received:
+
+
+  Core LLM / Agent Runtime:
+    id: core-llm-runtime
+    description: Hosted LLM API (OpenAI/Anthropic) or self-hosted model serving inference.
+    type: external-entity # values: external-entity, process, datastore
+    usage: business # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: true
+    justification_out_of_scope: >
+      Modeled as external when using a hosted provider API; mark in-scope and change type to
+      "process" if self-hosting the model within your own infrastructure.
+    size: system # values: system, service, application, component
+    technology: ai-ml-platform # values: see help
+    tags:
+      - genai
+      - llm
+    internet: true
+    machine: serverless # values: physical, virtual, container, serverless
+    encryption: transparent # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Model Vendor
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: mission-critical # values: archive, operational, important, critical, mission-critical
+    availability: critical # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Core inference engine; a vendor-side incident or model swap directly changes the
+      application's risk posture.
+    multi_tenant: true
+    redundant: true
+    custom_developed_parts: false
+    data_assets_processed:
+      - user-conversation-data
+      - system-prompts-config
+    data_assets_stored:
+    data_formats_accepted:
+      - json
+    communication_links:
+
+
+  RAG Vector Store:
+    id: rag-vector-store
+    description: Document/embedding store backing retrieval-augmented generation.
+    type: datastore # values: external-entity, process, datastore
+    usage: business # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: false
+    justification_out_of_scope:
+    size: component # values: system, service, application, component
+    technology: database # values: see help
+    tags:
+      - rag
+    internet: false
+    machine: container # values: physical, virtual, container, serverless
+    encryption: data-with-symmetric-shared-key # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Platform Owner
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: critical # values: archive, operational, important, critical, mission-critical
+    availability: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Poisoned content here is the primary indirect prompt-injection vector (Layer 2).
+    multi_tenant: false
+    redundant: false
+    custom_developed_parts: false
+    data_assets_processed:
+      - rag-source-documents
+    data_assets_stored:
+      - rag-source-documents
+    data_formats_accepted:
+      - json
+      - file
+    communication_links:
+
+
+  Model Weight Registry:
+    id: model-weight-registry
+    description: Storage for self-hosted model weight files pending or post ModelScan/Picklescan.
+    type: datastore # values: external-entity, process, datastore
+    usage: devops # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: false
+    justification_out_of_scope:
+    size: component # values: system, service, application, component
+    technology: file-server # values: see help
+    tags:
+      - genai
+    internet: false
+    machine: virtual # values: physical, virtual, container, serverless
+    encryption: data-with-symmetric-shared-key # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Platform Owner
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: mission-critical # values: archive, operational, important, critical, mission-critical
+    availability: important # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Highest-severity supply-chain asset in the platform; see Architecture Document Section 5.
+    multi_tenant: false
+    redundant: false
+    custom_developed_parts: false
+    data_assets_processed:
+      - model-weights
+    data_assets_stored:
+      - model-weights
+    data_formats_accepted:
+      - file
+    communication_links:
+
+
+  CI/CD Pipeline Runner:
+    id: cicd-runner
+    description: GitHub Actions or Azure Pipelines runner executing the security-scan workflow.
+    type: process # values: external-entity, process, datastore
+    usage: devops # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: false
+    justification_out_of_scope:
+    size: system # values: system, service, application, component
+    technology: build-pipeline # values: see help
+    tags:
+      - github-actions
+      - azure-pipelines
+    internet: true
+    machine: virtual # values: physical, virtual, container, serverless
+    encryption: none # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Platform Owner
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: critical # values: archive, operational, important, critical, mission-critical
+    availability: important # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Ephemeral but holds CI/CD secrets in memory during a run; compromise here is a direct
+      path to secret exfiltration (see abuse case).
+    multi_tenant: true
+    redundant: false
+    custom_developed_parts: true
+    data_assets_processed:
+      - cicd-secrets
+      - model-weights
+      - system-prompts-config
+      - scan-reports
+    data_assets_stored:
+      - scan-reports
+    data_formats_accepted:
+      - json
+      - yaml
+      - file
+    communication_links:
+      Scan Model Registry:
+        target: model-weight-registry
+        description: ModelScan/Picklescan pull of weight files for scanning.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        tags:
+        vpn: false
+        ip_filtered: false
+        readonly: true
+        usage: devops # values: business, devops
+        data_assets_sent:
+        data_assets_received:
+          - model-weights
+      Red Team and Threat Model LLM Calls:
+        target: core-llm-runtime
+        description: Garak/Promptfoo/STRIDE GPT calls against the target or a judge model.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        tags:
+          - llm
+        vpn: false
+        ip_filtered: false
+        readonly: false
+        usage: devops # values: business, devops
+        data_assets_sent:
+          - cicd-secrets
+        data_assets_received:
+      Read Source and Config:
+        target: git-repository
+        description: Checkout of application code, IaC, and guardrails/threat-model configs.
+        protocol: https # values: see help
+        authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        tags:
+        vpn: false
+        ip_filtered: false
+        readonly: true
+        usage: devops # values: business, devops
+        data_assets_sent:
+        data_assets_received:
+          - system-prompts-config
+
+
+  Git Repository:
+    id: git-repository
+    description: Source of truth for application code, IaC, guardrails config, and this threat model.
+    type: process # values: external-entity, process, datastore
+    usage: devops # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: false
+    justification_out_of_scope:
+    size: system # values: system, service, application, component
+    technology: sourcecode-repository # values: see help
+    tags:
+      - github-actions
+      - azure-pipelines
+    internet: true
+    machine: virtual # values: physical, virtual, container, serverless
+    encryption: transparent # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Platform Owner
+    confidentiality: internal # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: critical # values: archive, operational, important, critical, mission-critical
+    availability: important # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Tampering with guardrails config or CI workflow files here is a direct path to weakening
+      every other layer.
+    multi_tenant: false
+    redundant: true
+    custom_developed_parts: false
+    data_assets_processed:
+      - system-prompts-config
+    data_assets_stored:
+      - system-prompts-config
+    data_formats_accepted:
+      - file
+      - yaml
+    communication_links:
+
+
+  Langfuse Observability:
+    id: langfuse-observability
+    description: Self-hosted tracing store for prompts, responses, tool calls, and rail decisions.
+    type: datastore # values: external-entity, process, datastore
+    usage: devops # values: business, devops
+    used_as_client_by_human: false
+    out_of_scope: false
+    justification_out_of_scope:
+    size: application # values: system, service, application, component
+    technology: monitoring # values: see help
+    tags:
+      - docker
+    internet: false
+    machine: container # values: physical, virtual, container, serverless
+    encryption: data-with-symmetric-shared-key # values: none, transparent, data-with-symmetric-shared-key, data-with-asymmetric-shared-key, data-with-end-user-individual-key
+    owner: Platform Owner
+    confidentiality: confidential # values: public, internal, restricted, confidential, strictly-confidential
+    integrity: operational # values: archive, operational, important, critical, mission-critical
+    availability: operational # values: archive, operational, important, critical, mission-critical
+    justification_cia_rating: >
+      Aggregated historical copy of conversation data; primary evidence source for incident
+      response (Playbook Section 5.2).
+    multi_tenant: false
+    redundant: false
+    custom_developed_parts: false
+    data_assets_processed:
+      - langfuse-traces
+    data_assets_stored:
+      - langfuse-traces
+    data_formats_accepted:
+      - json
+    communication_links:
+
+
+
+trust_boundaries:
+
+  Public Internet:
+    id: public-internet
+    description: Untrusted network between the client and the guardrails proxy / CI runner.
+    type: network-cloud-provider # values: see help
+    tags:
+    technical_assets_inside:
+      - client-application
+    trust_boundaries_nested:
+
+  Runtime Environment:
+    id: runtime-environment
+    description: Docker host running docker-compose.guardrails.yml (guardrails proxy + Langfuse).
+    type: network-cloud-security-group # values: see help
+    tags:
+      - docker
+    technical_assets_inside:
+      - guardrails-proxy
+      - rag-vector-store
+      - langfuse-observability
+    trust_boundaries_nested:
+
+  CI/CD Environment:
+    id: cicd-environment
+    description: Ephemeral GitHub Actions / Azure Pipelines execution environment holding secrets during a run.
+    type: execution-environment # values: see help
+    tags:
+      - github-actions
+      - azure-pipelines
+    technical_assets_inside:
+      - cicd-runner
+      - git-repository
+      - model-weight-registry
+    trust_boundaries_nested:
+
+
+risk_tracking: {}
+
+# NOTE: populate risk_tracking (see upstream schema) as findings are triaged, e.g.:
+#   missing-hardening@guardrails-proxy:
+#     status: accepted # unchecked, in-discussion, accepted, in-progress, mitigated, false-positive
+#     justification: ...
+#     ticket: ...
+#     date: 2026-08-13
+#     checked_by: Platform Owner

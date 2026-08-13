@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ai-security-platform": {
+      "command": "python",
+      "args": ["mcp/security_tools_server.py"],
+      "description": "Exposes threagile, stride-gpt, modelscan, trivy, osv-scanner, garak, promptfoo, detect-secrets, and NeMo Guardrails validation as callable tools."
+    }
+  }
+}

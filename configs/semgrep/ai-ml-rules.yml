@@ -1,0 +1,48 @@
+rules:
+  - id: pickle-load-untrusted
+    languages: [python]
+    severity: ERROR
+    message: >
+      Loading a model or data file with pickle.load/torch.load(weights_only=False)
+      can execute arbitrary code if the file is untrusted. Use safetensors or
+      set weights_only=True, and scan with modelscan/picklescan first.
+    patterns:
+      - pattern-either:
+          - pattern: pickle.load(...)
+          - pattern: torch.load($FILE)
+    fix-regex:
+      regex: torch\.load\(([^)]*)\)
+      replacement: torch.load(\1, weights_only=True)
+
+  - id: hardcoded-llm-api-key
+    languages: [python, javascript, typescript]
+    severity: ERROR
+    message: "Hardcoded LLM API key detected. Use environment variables / a secrets manager."
+    patterns:
+      - pattern-regex: '(sk-[a-zA-Z0-9]{20,}|AIza[0-9A-Za-z_\-]{35})'
+
+  - id: unvalidated-llm-output-to-exec
+    languages: [python]
+    severity: ERROR
+    message: >
+      LLM output passed directly to eval/exec/os.system - classic
+      insecure-output-handling (OWASP LLM05). Validate/sanitize first.
+    patterns:
+      - pattern-either:
+          - pattern: eval($LLM_OUTPUT)
+          - pattern: exec($LLM_OUTPUT)
+          - pattern: os.system($LLM_OUTPUT)
+
+  - id: prompt-string-concat-with-user-input
+    languages: [python]
+    severity: WARNING
+    message: >
+      Building a prompt via raw string concatenation/f-string with user input
+      makes prompt injection easier to smuggle in. Prefer structured templates
+      with clear delimiters and treat retrieved/tool content as data, not instructions.
+    patterns:
+      - pattern-either:
+          - pattern: f"...{$USER_INPUT}..."
+      - metavariable-regex:
+          metavariable: $USER_INPUT
+          regex: ".*(user_input|request\\.|query|user_msg).*"
