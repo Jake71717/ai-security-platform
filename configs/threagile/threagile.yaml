@@ -235,7 +235,7 @@ technical_assets:
         description: HTTPS request carrying the user prompt.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: end-user-identity-propagation # values: none, technical-user, end-user-identity-propagation
+        authorization: enduser-identity-propagation # values: none, technical-user, enduser-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -285,7 +285,7 @@ technical_assets:
         description: Forwarded request after input rails pass.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
         tags:
           - llm
         vpn: false
@@ -301,7 +301,7 @@ technical_assets:
         description: Retrieval query for RAG-augmented prompts.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
         tags:
           - rag
         vpn: false
@@ -316,7 +316,7 @@ technical_assets:
         description: Trace export for every request/response and rail decision.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -474,7 +474,7 @@ technical_assets:
         description: ModelScan/Picklescan pull of weight files for scanning.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -488,7 +488,7 @@ technical_assets:
         description: Garak/Promptfoo/STRIDE GPT calls against the target or a judge model.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
         tags:
           - llm
         vpn: false
@@ -503,7 +503,7 @@ technical_assets:
         description: Checkout of application code, IaC, and guardrails/threat-model configs.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
+        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
