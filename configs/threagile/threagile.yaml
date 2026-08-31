@@ -256,7 +256,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: service # values: system, service, application, component
-    technology: reverse-proxy # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: reverse-proxy # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, vir[...]
     tags:
       - llm
       - docker
@@ -338,7 +338,7 @@ technical_assets:
       Modeled as external when using a hosted provider API; mark in-scope and change type to
       "process" if self-hosting the model within your own infrastructure.
     size: system # values: system, service, application, component
-    technology: web-service # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: application-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtu[...]
     tags:
       - genai
       - llm
@@ -373,7 +373,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: component # values: system, service, application, component
-    technology: database # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: database # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-[...]
     tags:
       - rag
     internet: false
@@ -407,7 +407,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: component # values: system, service, application, component
-    technology: file-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: file-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtu[...]
     tags:
       - genai
     internet: false
@@ -440,7 +440,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: build-system # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: build-system # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virt[...]
     tags:
       - github-actions
       - azure-pipelines
@@ -523,7 +523,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: source-control # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: source-control # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, vi[...]
     tags:
       - github-actions
       - azure-pipelines
@@ -559,7 +559,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: application # values: system, service, application, component
-    technology: tracing # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
+    technology: tracing # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-s[...]
     tags:
       - docker
     internet: false
