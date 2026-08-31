@@ -28,7 +28,7 @@ jobs:
     name: "Layer 0 - Baseline Threat Model (Threagile)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run Threagile
         run: |
@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload Threagile report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: threagile-report
           path: configs/threagile/output/
@@ -67,9 +67,9 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     continue-on-error: true   # advisory - a human curates findings, see agents/threat-modeler.md
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload STRIDE GPT report artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: stride-gpt-threat-model
           path: |
@@ -113,10 +113,10 @@ jobs:
     name: "Layer 1 - Supply Chain & Model Integrity"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -141,7 +141,7 @@ jobs:
           fi
 
       - name: Upload supply-chain artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: supply-chain-reports
           path: |
@@ -156,7 +156,7 @@ jobs:
     name: "Layer 1 - SAST (Semgrep AI/ML rules)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run Semgrep
         uses: semgrep/semgrep-action@v1
         with:
@@ -174,7 +174,7 @@ jobs:
     name: "Layer 1 - Vulnerability Scan (Trivy)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run Trivy filesystem + config scan
         uses: aquasecurity/trivy-action@v0.36.0
@@ -196,7 +196,7 @@ jobs:
 
       - name: Upload Trivy report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-report
           path: trivy-results.sarif
@@ -209,7 +209,7 @@ jobs:
     name: "Layer 1 - Dependency Vulnerability Scan (OSV-Scanner)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Run OSV-Scanner
         run: |
@@ -230,7 +230,7 @@ jobs:
 
       - name: Upload OSV-Scanner report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: osv-scanner-report
           path: osv-results.sarif
@@ -243,9 +243,9 @@ jobs:
     name: "Layer 2 - Data & Pipeline Integrity"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install detect-secrets
@@ -256,7 +256,7 @@ jobs:
           python -c "import json,sys; d=json.load(open('secrets-report.json')); n=sum(len(v) for v in d['results'].values()); print(f'{n} potential secrets found'); sys.exit(1 if n else 0)"
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: data-pipeline-report
           path: secrets-report.json
@@ -269,9 +269,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [supply-chain-scan]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -318,7 +318,7 @@ jobs:
 
       - name: Upload red-team artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: red-team-reports
           path: |
@@ -334,9 +334,9 @@ jobs:
     name: "Layer 4 - Runtime Guardrails Config Validation"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install NeMo Guardrails
