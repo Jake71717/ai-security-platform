@@ -78,6 +78,13 @@ jobs:
 
       - name: Run agentic threat model analysis
         run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ] && [ -z "${OPENAI_API_KEY}" ]; then
+            echo "No ANTHROPIC_API_KEY or OPENAI_API_KEY secret is configured."
+            echo "This layer is advisory only (continue-on-error) and does not"
+            echo "block the security gate, so skipping cleanly rather than"
+            echo "failing. Add one of those repo secrets to enable it."
+            exit 0
+          fi
           stride-gpt analyze . \
             --app-type genai \
             --worker-model anthropic/claude-sonnet-4-6 \
@@ -90,7 +97,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Upload SARIF to code scanning
-        if: always()
+        if: always() && hashFiles('stride-gpt-report.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: stride-gpt-report.sarif
