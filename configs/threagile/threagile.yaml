@@ -209,7 +209,7 @@ technical_assets:
     out_of_scope: true
     justification_out_of_scope: Owned and operated by the application team, not the security platform.
     size: application # values: system, service, application, component
-    technology: client-system # values: see help
+    technology: client-system # values: browser, rich-client, mobile-app, desktop, iot-device, watch, smart-tv
     tags:
       - llm
     internet: true
@@ -233,7 +233,7 @@ technical_assets:
       Client Traffic to Guardrails Proxy:
         target: guardrails-proxy
         description: HTTPS request carrying the user prompt.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: end-user-identity-propagation # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -256,7 +256,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: service # values: system, service, application, component
-    technology: reverse-proxy # values: see help
+    technology: reverse-proxy # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - llm
       - docker
@@ -283,7 +283,7 @@ technical_assets:
       Guardrails to Core Model:
         target: core-llm-runtime
         description: Forwarded request after input rails pass.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -299,7 +299,7 @@ technical_assets:
       Guardrails to RAG Store:
         target: rag-vector-store
         description: Retrieval query for RAG-augmented prompts.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -314,7 +314,7 @@ technical_assets:
       Guardrails to Langfuse:
         target: langfuse-observability
         description: Trace export for every request/response and rail decision.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -338,7 +338,7 @@ technical_assets:
       Modeled as external when using a hosted provider API; mark in-scope and change type to
       "process" if self-hosting the model within your own infrastructure.
     size: system # values: system, service, application, component
-    technology: ai-ml-platform # values: WebApplication
+    technology: web-service # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - genai
       - llm
@@ -373,7 +373,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: component # values: system, service, application, component
-    technology: database # values: see help
+    technology: database # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - rag
     internet: false
@@ -407,7 +407,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: component # values: system, service, application, component
-    technology: file-server # values: see help
+    technology: file-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - genai
     internet: false
@@ -440,7 +440,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: build-pipeline # values: see help
+    technology: build-system # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - github-actions
       - azure-pipelines
@@ -472,7 +472,7 @@ technical_assets:
       Scan Model Registry:
         target: model-weight-registry
         description: ModelScan/Picklescan pull of weight files for scanning.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -486,7 +486,7 @@ technical_assets:
       Red Team and Threat Model LLM Calls:
         target: core-llm-runtime
         description: Garak/Promptfoo/STRIDE GPT calls against the target or a judge model.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -501,7 +501,7 @@ technical_assets:
       Read Source and Config:
         target: git-repository
         description: Checkout of application code, IaC, and guardrails/threat-model configs.
-        protocol: https # values: see help
+        protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
         authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
@@ -523,7 +523,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: sourcecode-repository # values: see help
+    technology: source-control # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - github-actions
       - azure-pipelines
@@ -559,7 +559,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: application # values: system, service, application, component
-    technology: monitoring # values: see help
+    technology: tracing # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-switch, container-platform, serverless-platform, streaming-platform, nosql, document-db, columnar-db, time-series-db, search-index, blob-storage, file-server, identity-provider, identity-manager, vault, key-management-service, source-control, build-system, log-aggregation, monitoring, tracing, analytics, iam, rate-limiter, api-gateway, container-registry, artifact-repository, code-analysis, vulnerability-scanner, pen-testing, siem
     tags:
       - docker
     internet: false
@@ -590,7 +590,7 @@ trust_boundaries:
   Public Internet:
     id: public-internet
     description: Untrusted network between the client and the guardrails proxy / CI runner.
-    type: network-cloud-provider # values: see help
+    type: network-cloud-provider # values: execution-environment, network-on-premise, network-cloud-security-group, network-vpc, network-cloud-provider
     tags:
     technical_assets_inside:
       - client-application
@@ -599,7 +599,7 @@ trust_boundaries:
   Runtime Environment:
     id: runtime-environment
     description: Docker host running docker-compose.guardrails.yml (guardrails proxy + Langfuse).
-    type: network-cloud-security-group # values: see help
+    type: network-cloud-security-group # values: execution-environment, network-on-premise, network-cloud-security-group, network-vpc, network-cloud-provider
     tags:
       - docker
     technical_assets_inside:
@@ -611,7 +611,7 @@ trust_boundaries:
   CI/CD Environment:
     id: cicd-environment
     description: Ephemeral GitHub Actions / Azure Pipelines execution environment holding secrets during a run.
-    type: execution-environment # values: see help
+    type: execution-environment # values: execution-environment, network-on-premise, network-cloud-security-group, network-vpc, network-cloud-provider
     tags:
       - github-actions
       - azure-pipelines
