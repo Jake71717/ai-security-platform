@@ -440,7 +440,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: build-system # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway,[...]
+    technology: build-pipeline # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway,[...]
     tags:
       - github-actions
       - azure-pipelines
@@ -523,7 +523,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: source-control # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gatewa[...]
+    technology: sourcecode-repository # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gatewa[...]
     tags:
       - github-actions
       - azure-pipelines
