@@ -43,8 +43,7 @@ redteam:
   plugins:
     - harmful
     - pii
-    - prompt-injection
-    - jailbreak
+    - indirect-prompt-injection
     - excessive-agency
     - hallucination
     - rbac                # tests whether the agent respects role boundaries on tools
