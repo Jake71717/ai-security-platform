@@ -275,12 +275,39 @@ jobs:
     name: "Layer 3 - Model Robustness & Red Teaming"
     runs-on: ubuntu-latest
     needs: [supply-chain-scan]
+    # --- v1 / local-model mode -------------------------------------------
+    # This job currently targets a small local model (via Ollama) instead of
+    # a paid hosted API, so it runs with zero cost and no API key. That's a
+    # deliberate v1 trade-off: a small local model is far more jailbreak-prone
+    # than a real production-grade model, so a pass/fail here reflects the
+    # local stand-in, not necessarily your actual deployed model. When this
+    # goes to production, switch back to a real target:
+    #   1. Remove the "Install Ollama and pull local model" step below.
+    #   2. In configs/promptfoo/promptfooconfig.yaml: change `providers`,
+    #      `defaultTest.options.provider`, and `redteam.provider` from
+    #      ollama:chat:... back to e.g. openai:gpt-4o-mini or
+    #      anthropic:messages:claude-sonnet-5.
+    #   3. In the Garak steps below: change --model_type/--model_name back
+    #      to `openai` / `gpt-4o-mini` (or your real target), and restore
+    #      the OPENAI_API_KEY env on those steps.
+    #   4. Add OPENAI_API_KEY (and/or ANTHROPIC_API_KEY) as a repo secret.
+    # -----------------------------------------------------------------------
     steps:
       - uses: actions/checkout@v5
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ollama and pull local model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:11434/ >/dev/null 2>&1 && break
+            sleep 1
+          done
+          ollama pull llama3.2:3b
 
       - name: Install Garak + Promptfoo
         run: |
@@ -291,37 +318,44 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           python -m garak \
-            --model_type openai \
-            --model_name gpt-4o-mini \
+            --model_type ollama \
+            --model_name llama3.2:3b \
             --probes promptinject,leakreplay,malwaregen \
             --report_prefix garak-pr-report
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         continue-on-error: true   # non-blocking on PRs; nightly run is the hard gate
 
       - name: Run Garak full probe suite (nightly)
         if: github.event_name == 'schedule'
         run: |
           python -m garak \
-            --model_type openai \
-            --model_name gpt-4o-mini \
+            --model_type ollama \
+            --model_name llama3.2:3b \
             --probes all \
             --report_prefix garak-nightly-report
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Run Promptfoo red-team + eval suite
         run: |
           promptfoo redteam run -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-results.json || true
           promptfoo eval -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-eval.json
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Promptfoo calls its own hosted service by default, both to help
+          # generate redteam test cases and for telemetry/update checks -
+          # this keeps the whole run fully local and dependency-free,
+          # alongside the target/grader already pointed at Ollama in
+          # promptfooconfig.yaml. Verified directly: without the first var,
+          # `redteam run` hits an interactive "email verification required"
+          # wall instead of generating tests.
+          PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION: "true"
+          PROMPTFOO_DISABLE_TELEMETRY: "true"
+          PROMPTFOO_DISABLE_UPDATE: "true"
 
       - name: Enforce pass-rate gate
         run: |
           promptfoo eval -c configs/promptfoo/promptfooconfig.yaml --output promptfoo-eval.json
           node scripts/check-eval-threshold.js promptfoo-eval.json 0.95
+        env:
+          PROMPTFOO_DISABLE_TELEMETRY: "true"
+          PROMPTFOO_DISABLE_UPDATE: "true"
 
       - name: Upload red-team artifacts
         if: always()
