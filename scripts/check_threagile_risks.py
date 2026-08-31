@@ -41,8 +41,14 @@ def main():
         with open(path) as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"WARNING: {path} not found - did the Threagile run produce a JSON export? Skipping gate.")
-        sys.exit(0)
+        # This is a BLOCKING gate ("deterministic, blocking" per the workflow
+        # comment) - a missing risks.json means Threagile didn't actually run
+        # (e.g. a container permission error, a changed CLI flag, etc.), not
+        # that there are zero risks. Failing open here would let any change
+        # that silently breaks the Threagile step sail through as "passed".
+        print(f"ERROR: {path} not found - the Threagile run did not produce a risk export. "
+              f"Treating this as a failed gate rather than skipping it.")
+        sys.exit(1)
     except json.JSONDecodeError as e:
         print(f"ERROR: could not parse {path} as JSON: {e}")
         sys.exit(1)

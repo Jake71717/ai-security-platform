@@ -33,7 +33,15 @@ jobs:
       - name: Run Threagile
         run: |
           mkdir -p configs/threagile/output
+          # The threagile/threagile image runs as a fixed non-root UID (1000:1000).
+          # On GitHub-hosted runners the workspace (and the output dir we just
+          # created) is owned by the runner's own UID, which is *not* 1000, so
+          # without --user the container gets "permission denied" writing into
+          # the bind-mounted output dir, produces no files, and exits non-zero.
+          # Running as our own UID:GID makes the container use the same
+          # permissions we already have on the mount.
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -v "${{ github.workspace }}/configs/threagile:/app/work" \
             threagile/threagile \
             -model /app/work/threagile.yaml \
