@@ -87,8 +87,8 @@ jobs:
           fi
           stride-gpt analyze . \
             --app-type genai \
-            --worker-model anthropic/claude-sonnet-4-6 \
-            --architect-model anthropic/claude-opus-4-8 \
+            --worker-model anthropic/claude-sonnet-5 \
+            --architect-model anthropic/claude-opus-5 \
             --max-llm-calls 60 \
             -y \
             -o stride-gpt-report.sarif -f sarif
