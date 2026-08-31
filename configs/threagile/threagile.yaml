@@ -256,7 +256,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: service # values: system, service, application, component
-    technology: reverse-proxy # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, vir[...]
+    technology: reverse-proxy # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway[...]
     tags:
       - llm
       - docker
@@ -338,7 +338,7 @@ technical_assets:
       Modeled as external when using a hosted provider API; mark in-scope and change type to
       "process" if self-hosting the model within your own infrastructure.
     size: system # values: system, service, application, component
-    technology: application-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtu[...]
+    technology: application-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-ga[...]
     tags:
       - genai
       - llm
@@ -373,7 +373,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: component # values: system, service, application, component
-    technology: database # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-[...]
+    technology: database # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, vir[...]
     tags:
       - rag
     internet: false
@@ -407,7 +407,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: component # values: system, service, application, component
-    technology: file-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtu[...]
+    technology: file-server # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, [...]
     tags:
       - genai
     internet: false
@@ -440,7 +440,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: build-system # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virt[...]
+    technology: build-system # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway,[...]
     tags:
       - github-actions
       - azure-pipelines
@@ -523,7 +523,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: system # values: system, service, application, component
-    technology: source-control # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, vi[...]
+    technology: source-control # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gatewa[...]
     tags:
       - github-actions
       - azure-pipelines
@@ -559,7 +559,7 @@ technical_assets:
     out_of_scope: false
     justification_out_of_scope:
     size: application # values: system, service, application, component
-    technology: tracing # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virtual-s[...]
+    technology: database # values: web-server, web-application, application-server, message-broker, queue, cache, database, search-engine, reverse-proxy, load-balancer, cdn, waf, vpn-gateway, virt[...]
     tags:
       - docker
     internet: false
