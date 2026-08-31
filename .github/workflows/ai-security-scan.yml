@@ -253,7 +253,7 @@ jobs:
       - name: Scan for committed secrets / credentials
         run: |
           detect-secrets scan --all-files > secrets-report.json
-          python -c "import json,sys; d=json.load(open('secrets-report.json')); n=sum(len(v) for v in d['results'].values()); print(f'{n} potential secrets found'); sys.exit(1 if n else 0)"
+          python3 scripts/check_secrets_report.py secrets-report.json
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v6
