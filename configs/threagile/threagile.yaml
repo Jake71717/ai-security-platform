@@ -338,7 +338,7 @@ technical_assets:
       Modeled as external when using a hosted provider API; mark in-scope and change type to
       "process" if self-hosting the model within your own infrastructure.
     size: system # values: system, service, application, component
-    technology: ai-ml-platform # values: see help
+    technology: ai-ml-platform # values: WebApplication
     tags:
       - genai
       - llm
