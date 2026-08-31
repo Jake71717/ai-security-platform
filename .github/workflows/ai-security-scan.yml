@@ -259,7 +259,7 @@ jobs:
         run: pip install detect-secrets --break-system-packages
       - name: Scan for committed secrets / credentials
         run: |
-          detect-secrets scan --all-files > secrets-report.json
+          detect-secrets scan --all-files --exclude-files '^\.git/' > secrets-report.json
           python3 scripts/check_secrets_report.py secrets-report.json
       - name: Upload report
         if: always()
