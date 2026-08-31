@@ -466,7 +466,6 @@ technical_assets:
       - scan-reports
     data_formats_accepted:
       - json
-      - yaml
       - file
     communication_links:
       Scan Model Registry:
@@ -546,7 +545,6 @@ technical_assets:
       - system-prompts-config
     data_formats_accepted:
       - file
-      - yaml
     communication_links:
 
 
