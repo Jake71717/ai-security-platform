@@ -30,6 +30,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate Threagile model (schema + cross-references)
+        # Fail fast on a malformed model - bad enum, dangling link target,
+        # unknown data-asset id - before pulling and running the container,
+        # which would otherwise report it with less context. Same check the
+        # threagile-model-validate pre-commit hook runs locally.
+        run: |
+          pip install pyyaml jsonschema --break-system-packages
+          python3 scripts/check_threagile_model.py configs/threagile/threagile.yaml
+
       - name: Run Threagile
         run: |
           mkdir -p configs/threagile/output

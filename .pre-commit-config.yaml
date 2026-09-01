@@ -1,0 +1,19 @@
+# Pre-commit hooks for the AI Security Platform.
+#
+#   pip install pre-commit && pre-commit install
+#
+# Runs automatically on `git commit`; run against everything with
+#   pre-commit run --all-files
+repos:
+  - repo: local
+    hooks:
+      - id: threagile-model-validate
+        name: Validate Threagile model (schema + cross-references)
+        entry: python3 scripts/check_threagile_model.py configs/threagile/threagile.yaml
+        language: python
+        additional_dependencies:
+          - pyyaml
+          - jsonschema
+        # Only re-run when the model or its vendored schema changes.
+        files: ^configs/threagile/(threagile\.yaml|schema\.json)$
+        pass_filenames: false
