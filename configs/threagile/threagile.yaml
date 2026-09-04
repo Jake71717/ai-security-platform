@@ -9,7 +9,9 @@ threagile_version: 1.0.0
 # Run: docker run --rm -v "$(pwd)/configs/threagile:/app/work" threagile/threagile \
 #        -model /app/work/threagile.yaml -output /app/work/output
 
-title: AI Security Platform - Reference Deployment
+# NOTE: Threagile uses this title verbatim as the Excel worksheet name, which
+# Excel caps at 31 characters (and disallows : \ / ? * [ ]). Keep it short.
+title: AI Security Platform Reference
 
 date: 2026-08-13
 
@@ -235,7 +237,7 @@ technical_assets:
         description: HTTPS request carrying the user prompt.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: enduser-identity-propagation # values: none, technical-user, enduser-identity-propagation
+        authorization: end-user-identity-propagation # values: none, technical-user, end-user-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -285,7 +287,7 @@ technical_assets:
         description: Forwarded request after input rails pass.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
           - llm
         vpn: false
@@ -301,7 +303,7 @@ technical_assets:
         description: Retrieval query for RAG-augmented prompts.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
           - rag
         vpn: false
@@ -316,7 +318,7 @@ technical_assets:
         description: Trace export for every request/response and rail decision.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -473,7 +475,7 @@ technical_assets:
         description: ModelScan/Picklescan pull of weight files for scanning.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -487,7 +489,7 @@ technical_assets:
         description: Garak/Promptfoo/STRIDE GPT calls against the target or a judge model.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
           - llm
         vpn: false
@@ -502,7 +504,7 @@ technical_assets:
         description: Checkout of application code, IaC, and guardrails/threat-model configs.
         protocol: https # values: http, https, ws, wss, mqtt, amqp, grpc
         authentication: token # values: none, credentials, session-id, token, client-certificate, two-factor
-        authorization: technical-user # values: none, technical-user, enduser-identity-propagation
+        authorization: technical-user # values: none, technical-user, end-user-identity-propagation
         tags:
         vpn: false
         ip_filtered: false
@@ -618,6 +620,17 @@ trust_boundaries:
       - git-repository
       - model-weight-registry
     trust_boundaries_nested:
+
+
+shared_runtimes: {}
+# NOTE: add entries here if two or more of the technical_assets above run on
+# the same host/runtime, e.g.:
+#   Docker Compose Host:
+#     id: docker-compose-host
+#     technical_assets_running:
+#       - guardrails-proxy
+#       - rag-vector-store
+#       - langfuse-observability
 
 
 risk_tracking: {}

@@ -16,7 +16,7 @@ docs/
   IMPLEMENTATION-GITHUB.md   Step-by-step setup guide for GitHub
   IMPLEMENTATION-ADO.md       Step-by-step setup guide for Azure DevOps
 configs/
-  threagile/         Deterministic architecture threat model (Layer 0a)
+  threagile/         Deterministic architecture threat model + vendored schema.json (Layer 0a)
   garak/            Adversarial LLM probe notes (Layer 3)
   promptfoo/         Eval + red-team suite config (Layer 3)
   semgrep/           AI/ML-specific SAST rules (Layer 1)
@@ -28,6 +28,7 @@ scripts/
   setup.sh            One-shot local tool install
   run_local_scan.sh    Run all layers locally
   check-eval-threshold.js       CI pass-rate gate (Layer 3)
+  check_threagile_model.py      Structural validation of the Threagile model (pre-commit + CI fail-fast, Layer 0a)
   check_threagile_risks.py       CI blocking gate for untriaged Threagile risks (Layer 0a)
   check_osv_results.py       CI blocking gate for CRITICAL/HIGH OSV-Scanner findings (Layer 1d)
 agents/               Claude Code-style subagent definitions (threat modeler,
@@ -45,6 +46,13 @@ git clone <this-repo> && cd ai-security-platform
 cp .env.example .env   # fill in API keys
 ./scripts/setup.sh
 ./scripts/run_local_scan.sh
+```
+
+Optional but recommended - install the pre-commit hooks so the Threagile
+model is structurally validated (schema + cross-references) on every commit:
+
+```bash
+pip install pre-commit && pre-commit install
 ```
 
 To run the runtime guardrail proxy + observability stack:
