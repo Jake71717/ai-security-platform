@@ -1,0 +1,4 @@
+# Dependencies for scripts/notion_claude_sync.py
+anthropic>=1.0
+notion-client>=2.2
+python-dotenv>=1.0
